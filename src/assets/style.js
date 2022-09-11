@@ -2,8 +2,8 @@ import { StyleSheet } from 'react-native';
 
 export const commonStyles = StyleSheet.create({
     pageRow: {
-        paddingHorizontal: 15,
-        paddingVertical: 15,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
     },
 });
 

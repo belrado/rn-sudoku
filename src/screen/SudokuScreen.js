@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+    Alert,
     Dimensions,
     Pressable,
     StyleSheet,
@@ -15,12 +16,14 @@ import { sleep } from '../lib/utils';
 import { shallowEqual, useSelector } from 'react-redux';
 import Container from '../components/common/Container';
 import { Colors, commonStyles } from '../assets/style';
+import BtnBlock from '../components/sudokuBtn/BtnBlock';
 
 const sudoku = new Sudoku(3);
 
 const SudokuScreen = () => {
     const [loading, setLoading] = useState(true);
     const [sudokuNum, setSudokuNum] = useState([]);
+    const [step, setStep] = useState([]);
     const [viewSudoKuNum, setViewSudokuNum] = useState([]);
     const [buildTime, setBuildTime] = useState(0);
     const [button, setButton] = useState([]);
@@ -59,7 +62,8 @@ const SudokuScreen = () => {
             setViewNumberHandler(viewNumber);
             setButton(sudoku.number);
             setBuildTime(sudoku.time);
-            await sleep(100);
+            setStep([]);
+            // await sleep(100);
             setLoading(false);
         } catch (e) {
             setLoading(false);
@@ -76,7 +80,7 @@ const SudokuScreen = () => {
 
     const numberClickHandler = useCallback(
         item => {
-            console.log(viewSudoKuNum);
+            console.log(viewSudoKuNum, item);
             if (item.type === 'input') {
                 if (numClick.clickId === item.id) {
                     setNumClick({
@@ -147,11 +151,13 @@ const SudokuScreen = () => {
                                     return {
                                         ...v,
                                         color: 'pink',
+                                        error: false,
                                     };
                                 } else {
                                     return {
                                         ...v,
                                         color: '',
+                                        error: false,
                                     };
                                 }
                             }
@@ -159,13 +165,32 @@ const SudokuScreen = () => {
                     ),
                 );
 
+                const checkStepIndex = step.findIndex(
+                    i => i === selectNum.id.replace(/^id_/, ''),
+                );
+                if (checkStepIndex === -1) {
+                    setStep(prevState => [
+                        ...prevState,
+                        selectNum.id.replace(/^id_/, ''),
+                    ]);
+                } else {
+                    step.splice(checkStepIndex, 1);
+                    setStep(step.concat(selectNum.id.replace(/^id_/, '')));
+                }
+
                 if (!checkNum) {
                     Vibration.vibrate(ONE_SECOND_IN_MS / 5);
                 }
+            } else {
+                Alert.alert('', '숫자를 입력할 칸을 선택해 주세요.');
             }
         },
-        [viewSudoKuNum, numClick.status],
+        [viewSudoKuNum, numClick.status, step],
     );
+
+    const historyBackHandler = useCallback(() => {
+        Alert.alert('기능 미구현', '되돌아가기는 다음버전에 구현예정입니다.');
+    }, [step, viewSudoKuNum]);
 
     useEffect(() => {
         settingHandler(block).then(() => {});
@@ -174,12 +199,39 @@ const SudokuScreen = () => {
             setSudokuNum([]);
             setButton([]);
             setViewSudokuNum([]);
+            setStep([]);
         };
     }, []);
 
     useEffect(() => {
+        if (viewSudoKuNum.length > 0) {
+            let allCheck = true;
+            for (let i = 0; i < viewSudoKuNum.length; i++) {
+                for (let j = 0; j < viewSudoKuNum[i].length; j++) {
+                    if (
+                        viewSudoKuNum[i][j].error ||
+                        viewSudoKuNum[i][j].num === ''
+                    ) {
+                        console.log('errororororo', viewSudoKuNum[i][j]);
+                        allCheck = false;
+                        break;
+                    }
+                }
+            }
+            console.log('allChweck', allCheck);
+            if (allCheck) {
+                Alert.alert('Sudoku end', '아직 최종 검증은 안만들었다');
+            }
+        }
+    }, [viewSudoKuNum]);
+
+    /*useEffect(() => {
         settingHandler(block).then(() => {});
-    }, [block]);
+    }, [block]);*/
+
+    useEffect(() => {
+        console.log('step', step);
+    }, [step]);
 
     return (
         <>
@@ -236,47 +288,18 @@ const SudokuScreen = () => {
                             ))}
                         </View>
                     </View>
-                    <View style={[commonStyles.pageRow, styles.controller]}>
-                        <Pressable
-                            style={[
-                                styles.blockBtn,
-                                { marginRight: 10 },
-                                hint && styles.btnActive,
-                            ]}
-                            onPress={hintHandler}>
-                            <Text
-                                style={[
-                                    styles.blockText,
-                                    hint && styles.textActive,
-                                ]}>
-                                Hint
-                            </Text>
-                        </Pressable>
-                        <TouchableOpacity
-                            style={[styles.blockBtn, { marginRight: 10 }]}
-                            onPress={allClearHandler}>
-                            <Text style={styles.blockText}>All Clear</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.blockBtn}
-                            onPress={() => settingHandler(block)}>
-                            <Text style={styles.blockText}>Reset</Text>
-                        </TouchableOpacity>
-                    </View>
                     <View style={styles.buttonWrap}>
-                        {button.map(num => (
-                            <Pressable
-                                key={num}
-                                style={({ pressed }) => [
-                                    styles.numBtn,
-                                    pressed &&
-                                        numClick.status &&
-                                        styles.numPressedBtn,
-                                ]}
-                                onPress={() => setNumberHandler(num)}>
-                                <Text style={styles.blockText}>{num}</Text>
-                            </Pressable>
-                        ))}
+                        <BtnBlock
+                            number={button}
+                            blockNum={block}
+                            numClick={numClick}
+                            setNumberHandler={setNumberHandler}
+                            hintHandler={hintHandler}
+                            allClearHandler={allClearHandler}
+                            settingHandler={settingHandler}
+                            historyBackHandler={historyBackHandler}
+                            hint={hint}
+                        />
                     </View>
                 </Container>
             )}
@@ -370,56 +393,20 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: 'bold',
     },
-
     buttonWrap: {
         borderTopWidth: 1.5,
         flexDirection: 'row',
-        paddingVertical: 15,
-        paddingHorizontal: 15,
+        paddingVertical: 2,
+        paddingHorizontal: 2,
         flex: 1,
-        backgroundColor: Colors.sunflowerYellow,
-    },
-    numBtn: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 50,
-        borderWidth: 1,
-        borderRadius: 4,
-        paddingVertical: 5,
-        margin: 1,
-        backgroundColor: Colors.Wff,
-    },
-    numPressedBtn: {
-        backgroundColor: 'rgb(210, 230, 255)',
+        backgroundColor: Colors.Web,
+        /*backgroundColor: Colors.sunflowerYellow,*/
     },
     topBorderLine: {
         borderTopWidth: 1.5,
     },
     rightBorderLine: {
         borderRightWidth: 1.5,
-    },
-    blockBtn: {
-        flex: 1,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderRadius: 4,
-        borderColor: Colors.sunflowerYellow,
-        backgroundColor: Colors.sunflowerYellow,
-    },
-    btnActive: {
-        backgroundColor: Colors.Grape,
-        borderColor: Colors.Grape,
-    },
-    textActive: {
-        color: Colors.Wff,
-    },
-    blockText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: Colors.darkGreyBlue,
     },
 });
 
