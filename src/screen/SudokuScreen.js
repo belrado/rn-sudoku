@@ -22,12 +22,15 @@ const sudoku = new Sudoku(3);
 
 const SudokuScreen = () => {
     const [loading, setLoading] = useState(true);
+    const [startTime, setStartTime] = useState('');
+    const [errorCount, setErrorCount] = useState(0);
     const [sudokuNum, setSudokuNum] = useState([]);
     const [step, setStep] = useState([]);
     const [viewSudoKuNum, setViewSudokuNum] = useState([]);
     const [buildTime, setBuildTime] = useState(0);
     const [button, setButton] = useState([]);
     const [hint, setHint] = useState(false);
+    const [gameComplete, setGameComplete] = useState(false);
     const [numClick, setNumClick] = useState({
         clickId: '',
         status: false,
@@ -58,13 +61,16 @@ const SudokuScreen = () => {
             const response = await sudoku.createNumber(max);
             const temp = response.map(i => i.map(v => v));
             const viewNumber = sudoku.createViewNumber(temp);
-            setSudokuNum([...response]);
+            setSudokuNum([...viewNumber]);
             setViewNumberHandler(viewNumber);
             setButton(sudoku.number);
             setBuildTime(sudoku.time);
             setStep([]);
             // await sleep(100);
+            setErrorCount(0);
+            setGameComplete(false);
             setLoading(false);
+            setStartTime(new Date());
         } catch (e) {
             setLoading(false);
         }
@@ -75,13 +81,15 @@ const SudokuScreen = () => {
     }, [hint]);
 
     const allClearHandler = useCallback(() => {
-        setViewNumberHandler(sudoku.viewSudokuNumber);
-    }, []);
+        if (!gameComplete) {
+            setViewNumberHandler(sudoku.viewSudokuNumber);
+            setStep([]);
+        }
+    }, [gameComplete]);
 
     const numberClickHandler = useCallback(
         item => {
-            console.log(viewSudoKuNum, item);
-            if (item.type === 'input') {
+            if (item.type === 'input' && !gameComplete) {
                 if (numClick.clickId === item.id) {
                     setNumClick({
                         clickId: '',
@@ -116,12 +124,14 @@ const SudokuScreen = () => {
                 );
             }
         },
-        [viewSudoKuNum, numClick],
+        [viewSudoKuNum, numClick, gameComplete],
     );
-    const numberOutHandler = useCallback(() => {}, []);
 
     const setNumberHandler = useCallback(
         num => {
+            if (gameComplete) {
+                return false;
+            }
             if (numClick.status) {
                 const selectNum = viewSudoKuNum
                     .find(i => i.find(v => v.selected))
@@ -135,6 +145,10 @@ const SudokuScreen = () => {
                     num,
                     viewSudoKuNum,
                 );
+
+                if (!checkNum) {
+                    setErrorCount(errorCount + 1);
+                }
 
                 setViewSudokuNum(
                     viewSudoKuNum.map(i =>
@@ -165,17 +179,29 @@ const SudokuScreen = () => {
                     ),
                 );
 
-                const checkStepIndex = step.findIndex(
-                    i => i === selectNum.id.replace(/^id_/, ''),
+                setSudokuNum(
+                    sudokuNum.map(i =>
+                        i.map(v => {
+                            if (v.id === selectNum.id) {
+                                return {
+                                    ...v,
+                                    num: num,
+                                };
+                            } else {
+                                return {
+                                    ...v,
+                                };
+                            }
+                        }),
+                    ),
                 );
+
+                const checkStepIndex = step.findIndex(i => i === selectNum.id);
                 if (checkStepIndex === -1) {
-                    setStep(prevState => [
-                        ...prevState,
-                        selectNum.id.replace(/^id_/, ''),
-                    ]);
+                    setStep(prevState => [...prevState, selectNum.id]);
                 } else {
                     step.splice(checkStepIndex, 1);
-                    setStep(step.concat(selectNum.id.replace(/^id_/, '')));
+                    setStep(step.concat(selectNum.id));
                 }
 
                 if (!checkNum) {
@@ -185,12 +211,62 @@ const SudokuScreen = () => {
                 Alert.alert('', '숫자를 입력할 칸을 선택해 주세요.');
             }
         },
-        [viewSudoKuNum, numClick.status, step],
+        [
+            viewSudoKuNum,
+            sudokuNum,
+            numClick.status,
+            step,
+            gameComplete,
+            errorCount,
+        ],
     );
 
     const historyBackHandler = useCallback(() => {
-        Alert.alert('기능 미구현', '되돌아가기는 다음버전에 구현예정입니다.');
-    }, [step, viewSudoKuNum]);
+        if (step.length > 0 && !gameComplete) {
+            const lastHistory = step[step.length - 1];
+            setViewSudokuNum(
+                viewSudoKuNum.map(i =>
+                    i.map(v => {
+                        if (v.id === lastHistory) {
+                            return {
+                                ...v,
+                                num: '',
+                                error: false,
+                                selected: true,
+                                color: '',
+                            };
+                        } else {
+                            return {
+                                ...v,
+                                selected: false,
+                            };
+                        }
+                    }),
+                ),
+            );
+
+            setSudokuNum(
+                sudokuNum.map(i =>
+                    i.map(v => {
+                        if (v.id === lastHistory) {
+                            return {
+                                ...v,
+                                num: '',
+                            };
+                        } else {
+                            return {
+                                ...v,
+                            };
+                        }
+                    }),
+                ),
+            );
+
+            const stepTemp = step;
+            stepTemp.splice(-1, 1);
+            setStep(stepTemp);
+        }
+    }, [step, viewSudoKuNum, gameComplete]);
 
     useEffect(() => {
         settingHandler(block).then(() => {});
@@ -200,38 +276,43 @@ const SudokuScreen = () => {
             setButton([]);
             setViewSudokuNum([]);
             setStep([]);
+            setGameComplete(false);
+            setErrorCount(0);
         };
     }, []);
 
     useEffect(() => {
-        if (viewSudoKuNum.length > 0) {
+        if (sudokuNum.length > 0 && !gameComplete) {
             let allCheck = true;
-            for (let i = 0; i < viewSudoKuNum.length; i++) {
-                for (let j = 0; j < viewSudoKuNum[i].length; j++) {
-                    if (
-                        viewSudoKuNum[i][j].error ||
-                        viewSudoKuNum[i][j].num === ''
-                    ) {
-                        console.log('errororororo', viewSudoKuNum[i][j]);
+            for (let i = 0; i < sudokuNum.length; i++) {
+                for (let j = 0; j < sudokuNum[i].length; j++) {
+                    if (sudokuNum[i][j].num === '') {
                         allCheck = false;
                         break;
                     }
                 }
+                if (!allCheck) break;
             }
-            console.log('allChweck', allCheck);
+
             if (allCheck) {
-                Alert.alert('Sudoku end', '아직 최종 검증은 안만들었다');
+                const lastCheckNum = sudokuNum.map(r => r.map(i => i.num));
+                if (sudoku.checkClearSudoku(lastCheckNum)) {
+                    const completeTime = sudoku.checkRunTime(
+                        startTime,
+                        new Date(),
+                    );
+                    Alert.alert(
+                        '축하합니다',
+                        '클리어 시간 :' +
+                            completeTime +
+                            'sec\n 틀린 횟수 : ' +
+                            errorCount,
+                    );
+                    setGameComplete(true);
+                }
             }
         }
-    }, [viewSudoKuNum]);
-
-    /*useEffect(() => {
-        settingHandler(block).then(() => {});
-    }, [block]);*/
-
-    useEffect(() => {
-        console.log('step', step);
-    }, [step]);
+    }, [sudokuNum, gameComplete, startTime, errorCount]);
 
     return (
         <>
@@ -246,7 +327,7 @@ const SudokuScreen = () => {
                             commonStyles.pageRow,
                             { height: Dimensions.get('window').width },
                         ]}>
-                        <View style={{ flex: 1, borderWidth: 1.5 }}>
+                        <View style={{ flex: 1, borderWidth: 1 }}>
                             {viewSudoKuNum.map((row, idx) => (
                                 <View key={idx} style={[styles.numRow]}>
                                     {row.map((item, idy) => (
@@ -299,6 +380,7 @@ const SudokuScreen = () => {
                             settingHandler={settingHandler}
                             historyBackHandler={historyBackHandler}
                             hint={hint}
+                            gameComplete={gameComplete}
                         />
                     </View>
                 </Container>
@@ -394,12 +476,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     buttonWrap: {
-        borderTopWidth: 1.5,
+        borderTopWidth: 1,
         flexDirection: 'row',
-        paddingVertical: 2,
-        paddingHorizontal: 2,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
         flex: 1,
-        backgroundColor: Colors.Web,
+        /*backgroundColor: Colors.Web,*/
         /*backgroundColor: Colors.sunflowerYellow,*/
     },
     topBorderLine: {

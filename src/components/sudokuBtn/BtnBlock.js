@@ -18,6 +18,7 @@ const BtnBlock = ({
     allClearHandler,
     settingHandler,
     historyBackHandler,
+    gameComplete,
 }) => {
     const [button, setButton] = useState([]);
     useEffect(() => {
@@ -74,7 +75,7 @@ const BtnBlock = ({
                 <TouchableOpacity
                     style={[styles.btn, styles.controller]}
                     onPress={historyBackHandler}>
-                    <Text style={[styles.blockText]}>cancel</Text>
+                    <Text style={[styles.blockText]}>undo</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.btn, styles.controller]}
@@ -82,9 +83,19 @@ const BtnBlock = ({
                     <Text style={[styles.blockText]}>clear</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.btn, styles.controller]}
+                    style={[
+                        styles.btn,
+                        styles.controller,
+                        gameComplete && styles.btnActive,
+                    ]}
                     onPress={() => settingHandler(blockNum)}>
-                    <Text style={[styles.blockText]}>reset</Text>
+                    <Text
+                        style={[
+                            styles.blockText,
+                            gameComplete && styles.textActive,
+                        ]}>
+                        reset
+                    </Text>
                 </TouchableOpacity>
             </View>
         </View>

@@ -226,6 +226,51 @@ class Sudoku {
         return true;
     }
 
+    checkClearSudoku(sudokuNumber) {
+        let check = true;
+        let blockArr = [];
+        for (let i = 0; i < sudokuNumber.length; i++) {
+            let checkColumnArr = [];
+            let checkRowArr = [];
+            blockArr[i] = [];
+            for (let j = 0; j < sudokuNumber[i].length; j++) {
+                if (checkColumnArr.indexOf(sudokuNumber[i][j]) === -1) {
+                    checkColumnArr.push(sudokuNumber[i][j]);
+                } else {
+                    console.log('last column error', sudokuNumber[i][j]);
+                    check = false;
+                    break;
+                }
+                if (checkRowArr.indexOf(sudokuNumber[j][i]) === -1) {
+                    checkRowArr.push(sudokuNumber[j][i]);
+                } else {
+                    console.log('last row error', sudokuNumber[j][i]);
+                    check = false;
+                    break;
+                }
+                if (
+                    (i + 1) % this.max === 0 &&
+                    i !== 0 &&
+                    (j + 1) % this.max === 0 &&
+                    j !== 0
+                ) {
+                    if (!this.checkBox(i, j, sudokuNumber)) {
+                        console.log('last block error');
+                        check = false;
+                        break;
+                    } else {
+                        console.log('good!!!!!!!!!');
+                    }
+                }
+            }
+            if (!check) {
+                break;
+            }
+        }
+        if (!check) return false;
+        return true;
+    }
+
     checkRunTime(time, time2) {
         const t = time2.getTime() - time.getTime();
         const rt = parseInt(t) / 1000;
